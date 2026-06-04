@@ -39,15 +39,14 @@ class ServiceMarketServ(BaseRequestHandler):
 		self.request.send(msg.encode())
 
 		print("Conexión desde:", self.client_address)
-
+		host, port = self.client_address
 		while True:
 			mensaje = self.request.recv(1024).decode().strip()
 			if mensaje == "":
 				continue
-			print("Mensaje recibido:", mensaje)
 			partes = mensaje.split()
 			comando = partes[0].upper()
-
+			print("{",f"{host}:{port}","}:", mensaje)
 			if comando == "HELP":
 				respuesta = f"Para esta app puedes usar:\n" \
 					"Registrar <device>\n"\
@@ -72,7 +71,7 @@ class ServiceMarketServ(BaseRequestHandler):
 
 
 			else:
-				respuesta = "ERROR, comando no encontrado"
+				respuesta = "ERROR, comando no encontrado \r\n"
 			self.request.send(respuesta.encode())
 
 
