@@ -30,53 +30,56 @@ class BaseDatosProveedores:
 	def listar(self):
 		return self.proveedores
 
-class ManejadorMarket(BaseRequestHandler):
+
+class ServiceMarketServ(BaseRequestHandler):
 	def handle(self):
+
 		msg = "Bienvenido a Service Market\n Escribe HELP para conocer "\
-			 "los posibles comandos que dispones\n"
+			"los posibles comandos que dispones\n"
 		self.request.send(msg.encode())
 
 		print("Conexión desde:", self.client_address)
 
-		mensaje = self.request.recv(1024).decode().strip()
-		print("Mensaje recibido:", mensaje)
+		while True:
+			mensaje = self.request.recv(1024).decode().strip()
+			if mensaje == "":
+				continue
+			print("Mensaje recibido:", mensaje)
+			partes = mensaje.split()
+			comando = partes[0].upper()
 
-		partes = mensaje.split()
-		comando = partes[0].upper()
-
-		if comando == "HELP":
-			msg = f"Para esta app puedes usar:\n" \
-                                        "Registrar <device>\n"\
+			if comando == "HELP":
+				respuesta = f"Para esta app puedes usar:\n" \
+					"Registrar <device>\n"\
 					"Listar\n" \
-                                        "Salir\n"
+					"Salir\n"
 
-		elif  comando == "REGISTRAR":
-			proveedor = bd.registrar(partes[1], partes[2], partes[3], partes [4], partes[5])
-			respuesta = "OK Proveedor registrado"
+			elif  comando == "REGISTRAR":
+				proveedor = bd.registrar(partes[1], partes[2], partes[3], partes [4], partes[5])
+				respuesta = "OK Proveedor registrado"
 
-		elif comando == "LISTAR":
-			respuesta = "PROVEEDORES\n"
-			for proveedor in bd.listar():
-				respuesta += proveedor.mostrar() + "\n"
+			elif comando == "LISTAR":
+				respuesta = "PROVEEDORES\n"
+				for proveedor in bd.listar():
+					respuesta += str(proveedor) + "\n"
 
-		elif comando == "SALIR":
-			respuesta = "Conexión cerrada"
+			elif comando == "SALIR":
+				respuesta = "Conexión cerrada"
+				print(f"Client left {self.client_address} \r\n")
+				self.request.send(respuesta.encode())
+				self.request.close()
+				break
 
-		else:
-			respuesta = "ERROR, comando no encontrado"
 
-class ServiceMarketServ:
-	def __init__(self, ip, puerto):
-		self.ip = ip
-		self.puerto = puerto
-		self.server = ThreadingTCPServer((self.ip, self.puerto), ManejadorMarket)
+			else:
+				respuesta = "ERROR, comando no encontrado"
+			self.request.send(respuesta.encode())
 
-	def iniciar(self):
-		print("Service Market iniciado en: ", self.ip, ":", self.puerto)
-		self.server.serve_forever()
+
 
 bd = BaseDatosProveedores()
 
-market = ServiceMarketServ("0.0.0.0", 5000)
-market.iniciar()
+market = ThreadingTCPServer(("0.0.0.0", 5000), ServiceMarketServ)
+print("Service Market iniciado en 0.0.0.0:5000")
+market.serve_forever()
 
