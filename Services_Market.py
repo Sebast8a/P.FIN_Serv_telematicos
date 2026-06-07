@@ -68,7 +68,7 @@ class ServiceMarketServ(BaseRequestHandler):
 			comando = partes[0].upper()
 			print("{",f"{host}:{port}","}:", mensaje)
 			if comando == "HELP":
-				respuesta = = (
+				respuesta = (
 					"Para esta app puedes usar:\n"
 					"REGISTRAR nombre servicio costo ip puerto\n"
 					"LISTAR\n"
