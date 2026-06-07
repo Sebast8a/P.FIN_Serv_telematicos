@@ -166,11 +166,49 @@ class ProveedorUDPHandler(BaseRequestHandler):
 		if self.servicio is None:
 			return "ERROR Servicio no configurado en el proveedor\n"
 
+		if comando == "HELP":
+			return self.obtener_ayuda()
+
+		if comando == "SALIR":
+			return "Conexion UDP cerrada para este cliente\n"
+
 		if comando != self.servicio.codigo:
 			return f"ERROR Este proveedor solo ofrece {self.servicio.codigo}\n"
 
 		return self.servicio.atender(partes)
 
+	def obtener_ayuda(self):
+		if self.servicio.codigo == "HM":
+			return ("Bienvenido al proveedor de Hora Mundial\n"
+				"Comandos disponibles:\n"
+				"HELP\n"
+				"HM codigo_pais\n"
+				"SALIR\n"
+				"\n"
+				"Ejemplo:\n"
+				"HM CO\n")
+
+		if self.servicio.codigo == "CC":
+			return ("Bienvenido al proveedor de Cifrado Cesar\n"
+				"Comandos disponibles:\n"
+				"HELP\n"
+				"CC texto desplazamiento\n"
+				"SALIR\n"
+				"\n"
+				"Ejemplo:\n"
+				"CC hola 3\n")
+
+		if self.servicio.codigo == "DIP":
+			return ("Bienvenido al proveedor de Dominio IP\n"
+				"Comandos disponibles:\n"
+				"HELP\n"
+				"DIP dominio\n"
+				"SALIR\n"
+				"\n"
+				"Ejemplo:\n"
+				"DIP google.com\n")
+
+		return "HELP no disponible\n"
 
 class ProveedorUDPServer(ThreadingUDPServer):
 	allow_reuse_address = True
@@ -192,11 +230,22 @@ def run_proveedor(nombre, codigo, costo, ip_udp, puerto_udp, ip_market, puerto_m
     proveedor.iniciar_servidor_udp()
 
 
-# ------------------ Configuración de ejemplo ------------------
-run_proveedor("ProveedorHora", "HM", 500, "127.0.0.1", 7001, "127.0.0.1", 5000)
 
+if len(argv) != 8:
+	print("Uso:")
+	print("python3 Proveedor.py <nombre> <codigo> <costo> <ip_udp> <puerto_udp>"
+		" <ip_market> <puerto_market>")
+	print("Servicios disponibles: HM, CC, DIP")
+	exit(1)
 
+nombre = argv[1]
+codigo = argv[2]
+costo = argv[3]
+ip_udp = argv[4]
+puerto_udp = argv[5]
+ip_market = argv[6]
+puerto_market = argv[7]
 
-
+run_proveedor(nombre, codigo, costo, ip_udp, puerto_udp, ip_market, puerto_market)
 
 
