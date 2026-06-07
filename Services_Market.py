@@ -10,19 +10,19 @@ class Proveedor:
 		self.puerto = puerto
 
 	def __str__(self):
-		return (f"id:{self.id_proveedor}. "
+		return (f"id:{self.id_proveedor} | "
 			f"nombre:{self.nombre} | "
 			f"servicio:{self.servicio} | "
-			f"costo:${self.costo} COP | "
-			f"ip:{self.ip}:{self.puerto}" )
+			f"costo:${self.costo} COP")
+#			f"ip:{self.ip}:{self.puerto}" )
 
 	def datos_conexion(self):
 		return (
 			f"PROVEEDOR {self.id_proveedor} "
 			f"{self.nombre} "
-			f"{self.servicio} "
-			f"{self.costo} "
-			f"{self.ip} "
+#			f"{self.servicio} "
+#			f"{self.costo} "
+			f"{self.ip} : "
 			f"{self.puerto}"
 		)
 
@@ -51,91 +51,210 @@ class BaseDatosProveedores:
 
 class ServiceMarketServ(BaseRequestHandler):
 	def handle(self):
+		print("Conexion desde:", self.client_address)
 
-		msg = "Bienvenido a Service Market\n Escribe HELP para conocer "\
-			"los posibles comandos que dispones\n"
-		self.request.send(msg.encode())
+		self.enviar_menu_inicial()
 
-		print("Conexión desde:", self.client_address)
-		host, port = self.client_address
+		rol = self.recibir_rol()
+
+		if rol == "CLIENTE":
+			self.atender_cliente()
+
+		elif rol == "PROVEEDOR":
+			self.atender_proveedor()
+
+		else:
+			self.enviar("Conexion cerrada\n")
+			self.request.close()
+
+
+	def enviar(self, mensaje):
+		self.request.send(mensaje.encode())
+
+	def recibir(self):
+		return self.request.recv(1024).decode().strip()
+
+	def enviar_menu_inicial(self):
+		mensaje = (
+			"====================================\n"
+			"Bienvenido a Service Market\n"
+			"Seleccione una opcion:\n"
+			"CLIENTE\n"
+			"PROVEEDOR\n"
+			"SALIR\n"
+			"====================================\n"
+			"> "
+		)
+		self.enviar(mensaje)
+
+	def recibir_rol(self):
 		while True:
-			mensaje = self.request.recv(1024).decode().strip()
-			#Si no se ingresa nada continua, para que el programa siga funcionando
+			mensaje = self.recibir()
+
+			if mensaje == "":
+				return "SALIR"
+
+			rol = mensaje.upper()
+
+			if rol == "CLIENTE":
+				self.enviar(
+					"\nModo CLIENTE seleccionado\n"
+					"Escriba HELP para ver los comandos disponibles\n"
+				)
+				return "CLIENTE"
+
+			if rol == "PROVEEDOR":
+				self.enviar(
+					"\nModo PROVEEDOR seleccionado\n"
+					"Escriba HELP para ver los comandos disponibles\n"
+				)
+				return "PROVEEDOR"
+
+			if rol == "SALIR":
+				return "SALIR"
+
+			self.enviar(
+				"ERROR Opcion invalida\n"
+				"Debe escribir CLIENTE, PROVEEDOR o SALIR\n"
+				"> "
+			)
+
+	def atender_cliente(self):
+		host, port = self.client_address
+
+		while True:
+			mensaje = self.recibir()
+
 			if mensaje == "":
 				continue
 
 			partes = mensaje.split()
 			comando = partes[0].upper()
-			print("{",f"{host}:{port}","}:", mensaje)
+
+			print("{", f"{host}:{port}", "} CLIENTE:", mensaje)
+
 			if comando == "HELP":
 				respuesta = (
-					"Para esta app puedes usar:\n"
-					"REGISTRAR nombre servicio costo ip puerto\n"
+					"Comandos disponibles para CLIENTE:\n"
 					"LISTAR\n"
-					"SELECCIONAR id\n"
+					"SELECCIONAR <id>\n"
 					"SALIR\n"
-					)
-
-			elif comando == "REGISTRAR":
-				if len(partes) != 6:
-					respuesta = "ERROR Formato correcto: REGISTRAR nombre servicio costo ip puerto\n"
-
-				else:
-					nombre = partes[1]
-					servicio = partes[2].upper()
-					costo = partes[3]
-					ip = partes[4]
-					puerto = partes[5]
-
-					if servicio != "HM" and servicio != "CC" and servicio != "DIP":
-						respuesta = "ERROR Servicio invalido. Use HM, CC o DIP\n"
-
-					else:
-						proveedor = bd.registrar(nombre, servicio, costo, ip, puerto)
-						respuesta = f"OK Proveedor registrado con id {proveedor.id_proveedor}\n"
+				)
 
 			elif comando == "LISTAR":
-				proveedores = bd.listar()
-
-				if len(proveedores) == 0:
-					respuesta = "ERROR No hay proveedores registrados\n"
-
-				else:
-					respuesta = "PROVEEDORES\n"
-
-					for proveedor in proveedores:
-						respuesta += str(proveedor) + "\n"
+				respuesta = self.listar_proveedores()
 
 			elif comando == "SELECCIONAR":
-				if len(partes) != 2:
-					respuesta = "ERROR Formato correcto: SELECCIONAR id\n"
+				respuesta = self.seleccionar_proveedor(partes)
 
-				else:
-					try:
-						id_proveedor = int(partes[1])
-						proveedor = bd.seleccionar(id_proveedor)
-
-						if proveedor is None:
-							respuesta = "ERROR Proveedor no encontrado\n"
-
-						else:
-							respuesta = proveedor.datos_conexion() + "\n"
-
-					except ValueError:
-						respuesta = "ERROR El id debe ser numerico\n"
+			elif comando == "REGISTRAR":
+				respuesta = "ERROR Un CLIENTE no puede registrar proveedores\n"
 
 			elif comando == "SALIR":
-				respuesta = "Conexion cerrada\n"
-				print(f"Client left {self.client_address} \r\n")
-				self.request.send(respuesta.encode())
+				self.enviar("Conexion cerrada\n")
+				print(f"Cliente salio {self.client_address}")
 				self.request.close()
 				break
 
 			else:
-				respuesta = "ERROR Comando no encontrado\n"
+				respuesta = "ERROR Comando no permitido para CLIENTE\n"
 
-			self.request.send(respuesta.encode())
+			self.enviar(respuesta)
 
+	def atender_proveedor(self):
+		host, port = self.client_address
+
+		while True:
+			mensaje = self.recibir()
+
+			if mensaje == "":
+				continue
+
+			partes = mensaje.split()
+			comando = partes[0].upper()
+
+			print("{", f"{host}:{port}", "} PROVEEDOR:", mensaje)
+
+			if comando == "HELP":
+				respuesta = (
+					"Comandos disponibles para PROVEEDOR:\n"
+					"REGISTRAR <nombre> <servicio> <costo> <ip> <puerto>\n"
+					"SALIR\n"
+					"\n"
+					"Servicios validos: HM, CC, DIP\n"
+					"Ejemplo:\n"
+					"REGISTRAR ProveedorHora HM 500 127.0.0.1 7001\n"
+				)
+
+			elif comando == "REGISTRAR":
+				respuesta = self.registrar_proveedor(partes)
+
+			elif comando == "LISTAR":
+				respuesta = "ERROR Un PROVEEDOR no puede listar proveedores\n"
+
+			elif comando == "SELECCIONAR":
+				respuesta = "ERROR Un PROVEEDOR no puede seleccionar proveedores\n"
+
+			elif comando == "SALIR":
+				self.enviar("Conexion cerrada\n")
+				print(f"Proveedor salio {self.client_address}")
+				self.request.close()
+				break
+
+			else:
+				respuesta = "ERROR Comando no permitido para PROVEEDOR\n"
+
+			self.enviar(respuesta)
+
+	def registrar_proveedor(self, partes):
+		if len(partes) != 6:
+			return "ERROR Formato correcto: REGISTRAR nombre servicio costo ip puerto\n"
+
+		nombre = partes[1]
+		servicio = partes[2].upper()
+		costo = partes[3]
+		ip = partes[4]
+		puerto = partes[5]
+
+		if servicio != "HM" and servicio != "CC" and servicio != "DIP":
+			return "ERROR Servicio invalido. Use HM, CC o DIP\n"
+
+		try:
+			int(puerto)
+		except ValueError:
+			return "ERROR El puerto debe ser numerico\n"
+
+		proveedor = bd.registrar(nombre, servicio, costo, ip, puerto)
+		return f"OK Proveedor registrado con id {proveedor.id_proveedor}\n"
+
+	def listar_proveedores(self):
+		proveedores = bd.listar()
+
+		if len(proveedores) == 0:
+			return "ERROR No hay proveedores registrados\n"
+
+		respuesta = "PROVEEDORES\n"
+
+		for proveedor in proveedores:
+			respuesta += str(proveedor) + "\n"
+
+		return respuesta
+
+	def seleccionar_proveedor(self, partes):
+		if len(partes) != 2:
+			return "ERROR Formato correcto: SELECCIONAR <id>\n"
+
+		try:
+			id_proveedor = int(partes[1])
+		except ValueError:
+			return "ERROR El id debe ser numerico\n"
+
+		proveedor = bd.seleccionar(id_proveedor)
+
+		if proveedor is None:
+			return "ERROR Proveedor no encontrado\n"
+
+		return proveedor.datos_conexion() + "\n"
 
 
 

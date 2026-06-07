@@ -85,19 +85,34 @@ class ServicioCifradoCesar(Servicio):
 
 class ServicioDominioIP(Servicio):
 
-	def atender(self, partes):
-		if len(partes) != 2:
-			return "ERROR Formato correcto: DIP dominio\n"
+    def atender(self, partes):
+        if len(partes) != 2:
+            return "ERROR Formato correcto: DIP dominio\n"
 
-		dominio = partes[1]
+        dominio = partes[1].strip()
+        dominio = self.limpiar_dominio(dominio)
 
-		try:
-			ip = gethostbyname(dominio)
-			return f"OK DIP {dominio} {ip}\n"
+        if dominio == "":
+            return "ERROR Dominio invalido\n"
 
-		except:
-			return "ERROR No se pudo resolver el dominio\n"
+        try:
+            # Solo IPv4
+            info = socket.getaddrinfo(dominio, None, socket.AF_INET)
+            if not info:
+                return "ERROR No se pudo resolver el dominio\n"
 
+            ip = info[0][4][0]  # Primera IP IPv4
+            return f"OK DIP {dominio} {ip}\n"
+
+        except Exception:
+            return "ERROR No se pudo resolver el dominio\n"
+
+    def limpiar_dominio(self, dominio):
+        # Quita http:// o https:// y cualquier path
+        if "://" in dominio:
+            dominio = dominio.split("://")[1]
+        dominio = dominio.split("/")[0]
+        return dominio.strip()
 
 # ------------------ Proveedor ------------------
 class ProveedorServicio:
@@ -114,6 +129,11 @@ class ProveedorServicio:
 		bienvenida = cliente_tcp.recv(1024).decode()
 		print(bienvenida)
 
+		cliente_tcp.send("PROVEEDOR".encode())
+
+		respuesta_rol = cliente_tcp.recv(1024).decode()
+		print(respuesta_rol)
+
 		mensaje = (
 			f"REGISTRAR {self.servicio.nombre} "
 			f"{self.servicio.codigo} "
@@ -127,6 +147,7 @@ class ProveedorServicio:
 		respuesta = cliente_tcp.recv(1024).decode()
 		print("Respuesta del ServiceMarket:", respuesta)
 
+		cliente_tcp.send("SALIR".encode())
 		cliente_tcp.close()
 
 	def iniciar_servidor_udp(self):
@@ -182,7 +203,7 @@ class ProveedorUDPHandler(BaseRequestHandler):
 			return ("Bienvenido al proveedor de Hora Mundial\n"
 				"Comandos disponibles:\n"
 				"HELP\n"
-				"HM codigo_pais\n"
+				"HM <codigo_pais>\n"
 				"SALIR\n"
 				"\n"
 				"Ejemplo:\n"
@@ -192,7 +213,7 @@ class ProveedorUDPHandler(BaseRequestHandler):
 			return ("Bienvenido al proveedor de Cifrado Cesar\n"
 				"Comandos disponibles:\n"
 				"HELP\n"
-				"CC texto desplazamiento\n"
+				"CC <texto> <desplazamiento>\n"
 				"SALIR\n"
 				"\n"
 				"Ejemplo:\n"
@@ -202,7 +223,7 @@ class ProveedorUDPHandler(BaseRequestHandler):
 			return ("Bienvenido al proveedor de Dominio IP\n"
 				"Comandos disponibles:\n"
 				"HELP\n"
-				"DIP dominio\n"
+				"DIP <dominio>\n"
 				"SALIR\n"
 				"\n"
 				"Ejemplo:\n"
