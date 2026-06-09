@@ -38,7 +38,8 @@ class ServicioHoraMundial(Servicio):
 			"US": -1,
 			"DE": 6,
 			"ES": 6,
-			"JP": 14
+			"JP": 14,
+			"UK": 6
 		}
 
 		if pais not in diferencias:
@@ -84,35 +85,57 @@ class ServicioCifradoCesar(Servicio):
 		return resultado
 
 class ServicioDominioIP(Servicio):
+	def __init__(self, nombre, codigo, costo, ip, puerto_udp):
+		super().__init__(nombre, codigo, costo, ip, puerto_udp)
 
-    def atender(self, partes):
-        if len(partes) != 2:
-            return "ERROR Formato correcto: DIP dominio\n"
+		self.tabla_dominios = {
+			"A": {
+				"www.ejemplo.com": "1.1.1.1",
+				"www.google.com": "8.8.8.8",
+				"www.unicauca.edu.co": "200.21.83.20",
+				"www.facebook.com": "31.13.65.36",
+				"www.youtube.com": "142.250.78.14"
+			},
+			"AAAA": {
+				"www.ejemplo.com": "2606:4700:4700::1111",
+				"www.google.com": "2001:4860:4860::8888"
+			}
+		}
 
-        dominio = partes[1].strip()
-        dominio = self.limpiar_dominio(dominio)
 
-        if dominio == "":
-            return "ERROR Dominio invalido\n"
+	def atender(self, partes):
+		if len(partes) != 3:
+			return "ERROR Formato correcto: DIP <tipo_direccion> <dominio>\n"
 
-        try:
-            # Solo IPv4
-            info = socket.getaddrinfo(dominio, None, socket.AF_INET)
-            if not info:
-                return "ERROR No se pudo resolver el dominio\n"
+		tipo_direccion = partes[1].upper()
+		dominio = partes[2].strip().lower()
+		dominio = self.limpiar_dominio(dominio)
 
-            ip = info[0][4][0]  # Primera IP IPv4
-            return f"OK DIP {dominio} {ip}\n"
+		if tipo_direccion == "":
+			return "ERROR Tipo de direccion invalido\n"
 
-        except Exception:
-            return "ERROR No se pudo resolver el dominio\n"
+		if dominio == "":
+			return "ERROR Dominio invalido\n"
 
-    def limpiar_dominio(self, dominio):
-        # Quita http:// o https:// y cualquier path
-        if "://" in dominio:
-            dominio = dominio.split("://")[1]
-        dominio = dominio.split("/")[0]
-        return dominio.strip()
+		if tipo_direccion not in self.tabla_dominios:
+			return "ERROR Tipo de direccion no soportado. Use A o AAAA\n"
+
+		if dominio not in self.tabla_dominios[tipo_direccion]:
+			return "ERROR Dominio no registrado en la tabla DIP\n"
+
+		ip = self.tabla_dominios[tipo_direccion][dominio]
+
+		return f"OK {dominio} : {ip}\n"
+
+	def limpiar_dominio(self, dominio):
+		if "://" in dominio:
+			dominio = dominio.split("://")[1]
+
+		dominio = dominio.split("/")[0]
+		dominio = dominio.strip()
+
+		return dominio
+
 
 # ------------------ Proveedor ------------------
 class ProveedorServicio:
@@ -223,11 +246,17 @@ class ProveedorUDPHandler(BaseRequestHandler):
 			return ("Bienvenido al proveedor de Dominio IP\n"
 				"Comandos disponibles:\n"
 				"HELP\n"
-				"DIP <dominio>\n"
+				"DIP tipo_direccion dominio\n"
 				"SALIR\n"
 				"\n"
-				"Ejemplo:\n"
-				"DIP google.com\n")
+				"Tipos de direccion disponibles:\n"
+				"A    -> IPv4\n"
+				"AAAA -> IPv6\n"
+				"\n"
+				"Ejemplos:\n"
+				"DIP A www.ejemplo.com\n"
+				"DIP A www.google.com\n"
+				"DIP AAAA www.ejemplo.com\n")
 
 		return "HELP no disponible\n"
 
