@@ -1,0 +1,81 @@
+services:
+  market:
+    build: .
+    container_name: services_market
+    command: python3 Services_Market.py
+    ports:
+      - "5000:5000"
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.10
+
+  proveedor_hm:
+    build: .
+    container_name: proveedor_hm
+    command: python3 Proveedor.py ProveedorHora HM 500 172.28.0.11 7001 172.28.0.10 5000
+    depends_on:
+      - market
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.11
+
+  proveedor_cc:
+    build: .
+    container_name: proveedor_cc
+    command: python3 Proveedor.py ProveedorCesar CC 300 172.28.0.12 7002 172.28.0.10 5000
+    depends_on:
+      - market
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.12
+
+  proveedor_dip:
+    build: .
+    container_name: proveedor_dip
+    command: python3 Proveedor.py ProveedorDominio DIP 700 172.28.0.13 7003 172.28.0.10 5000
+    depends_on:
+      - market
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.13
+
+  cliente:
+    build: .
+    container_name: cliente_udp
+    command: bash
+    stdin_open: true
+    tty: true
+    depends_on:
+      - market
+      - proveedor_hm
+      - proveedor_cc
+      - proveedor_dip
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.20
+    profiles:
+      - cliente
+
+  cliente1:
+    image: alpine
+    container_name: cliente_test
+    command: sh
+    stdin_open: true
+    tty: true
+    depends_on:
+      - market
+      - proveedor_hm
+      - proveedor_cc
+      - proveedor_dip
+    networks:
+      services_net:
+        ipv4_address: 172.28.0.21
+    profiles:
+      - cliente1
+
+networks:
+  services_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
